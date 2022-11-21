@@ -1,6 +1,7 @@
 package com.example.geidea.users.Entities
 
 import androidx.room.ColumnInfo
+import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 data class UserEntity(
@@ -13,6 +14,7 @@ data class UserEntity(
     @ColumnInfo(name = "data")
     var data: List<UserList>
 )
+@Entity(tableName = "user")
 data class UserList(
     @PrimaryKey
     @ColumnInfo(name = "id")
@@ -26,5 +28,6 @@ data class UserList(
     @ColumnInfo(name = "avatar")
     var avatar: String
 )
+
 data class UserData(@ColumnInfo(name = "data")
                     var data: UserList)

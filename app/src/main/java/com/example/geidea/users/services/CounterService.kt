@@ -3,31 +3,34 @@ package com.example.geidea.users.services
 import android.app.Service
 import android.content.Intent
 import android.os.Binder
+import android.os.Bundle
 import android.os.CountDownTimer
-import android.os.Handler
 import android.os.IBinder
-import android.os.SystemClock
 import android.util.Log
-import android.widget.Chronometer
-import android.widget.Chronometer.OnChronometerTickListener
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 
 
 class CounterService : Service() {
 
     private val LOG_TAG = "BoundService"
     private val mBinder: IBinder = LocalBinder()
-    var Counter:Long=0L
+    var Counter:String=""
 
     override fun onCreate() {
         super.onCreate()
         Log.v(LOG_TAG, "in onCreate")
-        val timer = object: CountDownTimer(180000, 1000) {
+        var runTime:Long=3600000L
+        val timer = object: CountDownTimer(runTime, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 val hours = (millisUntilFinished / 3600000).toInt()
                 val minutes = (millisUntilFinished - hours * 3600000).toInt() / 60000
                 val seconds = (millisUntilFinished - hours * 3600000 - minutes * 60000) / 1000
+                Counter= "$hours:$minutes:$seconds"
+
                 Log.v(LOG_TAG, seconds.toString())
-                Counter=seconds
+                val intent = Intent("CounterUpdate")
+                intent.putExtra("count", Counter)
+                LocalBroadcastManager.getInstance(this@CounterService).sendBroadcast(intent)
             }
 
             override fun onFinish() {}
