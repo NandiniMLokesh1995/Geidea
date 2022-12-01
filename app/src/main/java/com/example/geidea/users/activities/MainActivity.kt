@@ -47,9 +47,19 @@ class MainActivity : AppCompatActivity() {
         activityMainBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(activityMainBinding.root)
         initialize()
-        isNetworkConnected()
+        if(isNetworkConnected()){
+            Toast.makeText(applicationContext,"Network Available",Toast.LENGTH_SHORT).show()
+            userViewModel.getUserList()
+
+        }else{
+            Toast.makeText(applicationContext,"Offline",Toast.LENGTH_SHORT).show()
+            userViewModel.getAllUsers()
+
+        }
+        networkChange()
 
     }
+
 
     private fun initialize() {
 
@@ -101,30 +111,48 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
+    private fun isNetworkConnected():Boolean{
+        val connectivityManager = this.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val actNetwork      = connectivityManager.activeNetwork ?: return false
+            val actNetworkCapabilities = connectivityManager.getNetworkCapabilities(actNetwork) ?: return false
+            return when {
+                actNetworkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+                actNetworkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+                //for other device how are able to connect with Ethernet
+                actNetworkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
+                //for check internet over Bluetooth
+                actNetworkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH) -> true
+                else -> false
+            }
+        } else {
+            return connectivityManager.activeNetworkInfo?.isConnected ?: false
+        }
+    }
 
-    private fun isNetworkConnected() {
+    private fun networkChange() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             connectivityManager=getSystemService(ConnectivityManager::class.java)
+
+
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 myNetworkCallback=
                     object : ConnectivityManager.NetworkCallback() {
+
                         override fun onAvailable(network : Network) {
-                            Log.e(TAG, "The default network is now: " + network)
-                            Toast.makeText(applicationContext,"onAvailable",Toast.LENGTH_SHORT).show()
+                            //Log.e(TAG, "The default network is now: " + network)
+                            Toast.makeText(applicationContext,"Back Online",Toast.LENGTH_SHORT).show()
                             userViewModel.getUserList()
 
                         }
 
                         override fun onLost(network : Network) {
-                            Toast.makeText(applicationContext,"No Lost",Toast.LENGTH_SHORT).show()
+                            Toast.makeText(applicationContext,"Network Lost",Toast.LENGTH_SHORT).show()
                             userViewModel.getAllUsers()
                             // Log.e(TAG, "The application no longer has a default network. The last default network was " + network)
 
-                        }
-
-                        override fun onUnavailable() {
-                            super.onUnavailable()
                         }
 
                     }

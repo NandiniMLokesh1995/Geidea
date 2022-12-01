@@ -52,7 +52,7 @@ class UserVewModel(val repository: UserRepository) : ViewModel() {
     fun getRoomUserData(id: Int) {
         CoroutineScope(Dispatchers.IO).launch {
             val response: UserList = repository.getUserById(id)
-            Log.d(TAG, "UserData: " + response)
+            Log.d(TAG, "getRoomUserData : " + response)
             if (response !== null) {
                 user.postValue(response)
             }

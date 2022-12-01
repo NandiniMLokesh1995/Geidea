@@ -1,24 +1,20 @@
 package com.example.geidea.users.activities
 
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.ServiceConnection
 import android.net.ConnectivityManager
 import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.*
 import android.util.Log
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import android.widget.Chronometer
 import android.widget.Toast
-import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.bumptech.glide.request.RequestOptions
 import com.example.geidea.databinding.ActivityUserDataBinding
 import com.example.geidea.users.databases.UserDatabase
 import com.example.geidea.users.repositories.UserRepository
@@ -39,10 +35,10 @@ class UserDataActivity : AppCompatActivity() {
     lateinit var retrofitService:RetrofitService
     lateinit var chronometer:Chronometer
     lateinit var timer :CountDownTimer
-    var userID:Int = 0
     lateinit var userDatabase:UserDatabase
     lateinit var connectivityManager :ConnectivityManager
     lateinit var myNetworkCallback: ConnectivityManager.NetworkCallback
+    lateinit var requestOptions :RequestOptions
     val TAG="UserDataActivity"
 
 
@@ -51,17 +47,27 @@ class UserDataActivity : AppCompatActivity() {
         activityUserDataBinding= ActivityUserDataBinding.inflate(layoutInflater)
         setContentView(activityUserDataBinding.root)
         // start to LocalService
+
+        var userID= intent.getIntExtra("ID",1)
         val intent= Intent(this@UserDataActivity, CounterService::class.java)
         startService(intent)
-        userID= intent.getIntExtra("ID",1)
-        initialize()
-        isNetworkConnected()
-    }
-    override fun onStart() {
-        super.onStart()
+        Log.d(TAG, "onCreate: $userID")
+        initialize(userID)
+        if(isNetworkConnected()){
+            Toast.makeText(applicationContext,"Network Available",Toast.LENGTH_SHORT).show()
+            userViewModel.getUserData(userID)
+
+        }else{
+            Toast.makeText(applicationContext,"Offline",Toast.LENGTH_SHORT).show()
+            userViewModel.getRoomUserData(userID)
+
+        }
+        networkChange(userID)
+
+
     }
 
-    private fun initialize() {
+    private fun initialize(userID: Int) {
 
         chronometer= activityUserDataBinding.cmeter
 
@@ -74,16 +80,17 @@ class UserDataActivity : AppCompatActivity() {
             UserViewModelFactory(UserRepository(retrofitService,userDatabase.userDao()))
         ).get(UserVewModel::class.java)
 
+        requestOptions = RequestOptions().diskCacheStrategy(DiskCacheStrategy.ALL)
 
-        
         userViewModel.userData.observe(this, Observer {
-            Log.d("Fragment",it.data.toString())
+            //Log.d("Fragment",it.data.toString())
 
             activityUserDataBinding.tvEmail.text=it.data.email
             activityUserDataBinding.tvFname.text=it.data.first_name
             activityUserDataBinding.tvLname.text=it.data.last_name
             Glide.with(this)
                 .load(it.data.avatar)
+                .apply(requestOptions)
                 .into(activityUserDataBinding.ivProfilePic)
         })
 
@@ -94,6 +101,7 @@ class UserDataActivity : AppCompatActivity() {
             activityUserDataBinding.tvLname.text=it.last_name
             Glide.with(this)
                 .load(it.avatar)
+                .apply(requestOptions)
                 .into(activityUserDataBinding.ivProfilePic)
         })
 
@@ -130,29 +138,25 @@ class UserDataActivity : AppCompatActivity() {
         super.onBackPressed()
     }
 
-    private fun isNetworkConnected() {
+    private fun networkChange(userID:Int) {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             connectivityManager=getSystemService(ConnectivityManager::class.java)
+
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 myNetworkCallback=
                     object : ConnectivityManager.NetworkCallback() {
                         override fun onAvailable(network : Network) {
-                            Log.e(TAG, "The default network is now: " + network)
-                            Toast.makeText(applicationContext,"onAvailable", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(applicationContext,"Back Online", Toast.LENGTH_SHORT).show()
                             userViewModel.getUserData(userID)
 
                         }
 
                         override fun onLost(network : Network) {
-                            Toast.makeText(applicationContext,"No Lost", Toast.LENGTH_SHORT).show()
-                            userViewModel.getRoomUserData(userID)
-                            // Log.e(TAG, "The application no longer has a default network. The last default network was " + network)
+                            Toast.makeText(applicationContext,"Network Lost", Toast.LENGTH_SHORT).show()
+                                userViewModel.getRoomUserData(userID)
 
-                        }
-
-                        override fun onUnavailable() {
-                            super.onUnavailable()
                         }
 
                     }
@@ -164,5 +168,24 @@ class UserDataActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         connectivityManager.unregisterNetworkCallback(myNetworkCallback)
+    }
+
+    private fun isNetworkConnected():Boolean{
+        val connectivityManager = this.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val actNetwork      = connectivityManager.activeNetwork ?: return false
+            val actNetworkCapabilities = connectivityManager.getNetworkCapabilities(actNetwork) ?: return false
+            return when {
+                actNetworkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+                actNetworkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+                //for other device how are able to connect with Ethernet
+                actNetworkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
+                //for check internet over Bluetooth
+                actNetworkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH) -> true
+                else -> false
+            }
+        } else {
+            return connectivityManager.activeNetworkInfo?.isConnected ?: false
+        }
     }
 }
